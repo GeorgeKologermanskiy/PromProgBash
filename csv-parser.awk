@@ -35,9 +35,6 @@ function csv_parse_line(line, csv) {
 }
 
 function csv_parse(line, colnum) {
-	if (NR == 1) {
-		return
-	}
 	if (colnum == -1) {
 		return
 	}
@@ -58,3 +55,33 @@ function csv_find_colnum(line, colname) {
 	}
 	print -1
 }
+
+function csv_train_filter(line, train_size, colnum, stype) {
+	if (colnum == -1) {
+		return
+	}
+
+	num_fields = csv_parse_line(line, csv)
+	if (csv[colnum] == stype) {
+		count++
+		if (count <= train_size) {
+			print line
+		}
+	}
+}
+
+function csv_test_filter(line, train_size, colnum, stype) {
+	if (colnum == -1) {
+		return
+	}
+
+	num_fields = csv_parse_line(line, csv)
+	if (csv[colnum] == stype) {
+		count++
+		if (count > train_size) {
+			print line	
+		}
+	}
+}
+
+#awk -f csv-parser.awk -F '\n' -v colnum=$COL_POS -v train_size=$TS -v stype=$v --source 'BEGIN {count=0}{csv_train_filter($0, train_size, colnum, stype)}' $INPUT_TEMP_PATH >> $TRAIN_PATH

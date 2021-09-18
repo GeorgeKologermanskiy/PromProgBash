@@ -51,7 +51,8 @@ if [[ -f $INPUT_TEMP_PATH ]]; then
 	rm $INPUT_TEMP_PATH
 fi
 
-cat $INPUT_PATH | awk '{if (NR != 1) print $0}' | shuf >$INPUT_TEMP_PATH
+# generate 
+cat $INPUT_PATH | awk '{if (NR != 1) print $0}' >$INPUT_TEMP_PATH
 
 FIRST_LINE=$(cat $INPUT_PATH | head -n1)
 
@@ -59,14 +60,16 @@ FIRST_LINE=$(cat $INPUT_PATH | head -n1)
 SIZE=$(expr $(cat $INPUT_PATH | wc -l) - 1)
 TRAIN_SIZE=$(echo "$SIZE*$TRAIN_RATIO" | bc | awk '{print int($1)}')
 
+# add headers
+echo $FIRST_LINE >$TRAIN_PATH
+echo $FIRST_LINE >$TEST_PATH
+
 # not stratisfied split
 if [[ $STRATISFIED -eq 0 ]]; then
 	# write train file
-	echo $FIRST_LINE >$TRAIN_PATH
 	awk -v barrier=$TRAIN_SIZE '{if (NR <= barrier) print $0}' $INPUT_TEMP_PATH >> $TRAIN_PATH
 	
 	# write test file
-	echo $FIRST_LINE >$TEST_PATH
 	awk -v barrier=$TRAIN_SIZE '{if (NR > barrier) print $0}' $INPUT_TEMP_PATH >> $TEST_PATH
 	
 	# delete tmp file
@@ -74,6 +77,29 @@ if [[ $STRATISFIED -eq 0 ]]; then
 	exit 0
 fi
 
+# find column pos
 COL_POS=$(echo $FIRST_LINE | awk -f csv-parser.awk -v col_name=$COL_NAME --source '{csv_find_colnum($0, col_name)}')
 
+# get full sample and unique list
+SAMPLE=$(awk -f csv-parser.awk -v colnum=$COL_POS --source '{csv_parse($0, colnum)}' $INPUT_TEMP_PATH)
+UNIQUE=$(echo $SAMPLE | tr ' ' '\n' | sort | uniq)
 
+
+
+# split 
+for v in $UNIQUE
+do
+	# calculate type count
+	CNT=$(echo $SAMPLE | tr ' ' '\n'| awk -F '\n' -v val=$v '{if (val == $1) print 1}' | wc -l)
+	# calculate train size of type
+	TS=$(echo "$CNT*$TRAIN_RATIO" | bc | awk '{print int($1)}')
+	
+	# write train part
+	awk -f csv-parser.awk -F '\n' -v colnum=$COL_POS -v train_size=$TS -v stype=$v --source 'BEGIN {count=0}{csv_train_filter($0, train_size, colnum, stype)}' $INPUT_TEMP_PATH >> $TRAIN_PATH
+
+	# write test part
+	awk -f csv-parser.awk -F '\n' -v colnum=$COL_POS -v train_size=$TS -v stype=$v --source 'BEGIN {count=0}{csv_test_filter($0, train_size, colnum, stype)}' $INPUT_TEMP_PATH >> $TEST_PATH
+done;
+#echo $SAMPLE | head
+
+#echo $STAT_POS

@@ -17,7 +17,7 @@ function csv_parse_line(line, csv) {
 			continue
 		}
 
-		if (substr(line, pos, 1) == ",") {
+		if (substr(line, pos, 1) == ";") {
 			csv[num_fields++] = substr(line, prev_pos+1, pos-prev_pos-1)
 			
 			prev_pos=pos
@@ -35,6 +35,9 @@ function csv_parse_line(line, csv) {
 }
 
 function csv_parse(line, colnum) {
+	if (NR == 1) {
+		return
+	}
 	if (colnum == -1) {
 		return
 	}
@@ -54,3 +57,5 @@ function csv_find_colnum(line, colname) {
 		pos++
 	}
 	print -1
+}
+
